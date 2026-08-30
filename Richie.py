@@ -22,27 +22,45 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm Richie, let's START saving money! Get it😂!")
     
 
-'''async def main():
+def application_setup():
+
     # Load the keys fromm the local .env file
     load_dotenv()
 
     # Safely retrieve the hidden token
     BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
     # Generate an instance of the Bot class
-    bot = telegram.Bot(BOT_TOKEN)
+    bot = telegram.Bot(BOT_TOKEN)    
 
-    #Same as opening a file it intiliases the bot
-    #async with bot:
+    return ApplicationBuilder().token(BOT_TOKEN).build()
 
-    #Create an application
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
-            
+async def provide_template(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    '''
+    Richie will provide the proper format for an expense or income as per user request
 
-    start_handler = CommandHandler('start', start)
-    application.add_handler(start_handler)
-            
-    application.run_polling()'''
-        
+    It returns the handler
+    '''
+
+    text = (update.effective_message.text).lower()
+    print(f"{text}")
+    template = ""
+    income = "income"
+    expense = "expense"
+
+    #Retrieve template based on user message
+    if expense in text:
+        template = "YYYY-MM-DD store description amount category"
+        trans_type = "expense"
+        print(f'The transaction type is: {trans_type}')
+    elif income in text:
+        template = "YYYY-MM-DD source description amount category"
+        trans_type = "income"
+        print(f'The transaction type is: {trans_type}')
+
+    if template != "":
+        message = f"Of course {update.effective_user.first_name}! \n" + f"To record a {trans_type}, follow the below message structure: \n"
+        message += f"\n {template}"
+        await context.bot.send_message(chat_id= update._effective_chat.id, text=message)    
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     #Repeat everything back to the user
     chat_id = update.effective_chat.id
@@ -54,39 +72,31 @@ async def caps(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text_caps)
 
 if __name__ == '__main__':
-    #asyncio.run(main())
- # Load the keys fromm the local .env file
-    load_dotenv()
-
-    # Safely retrieve the hidden token
-    BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-    # Generate an instance of the Bot class
-    bot = telegram.Bot(BOT_TOKEN)
-
-    #Same as opening a file it intiliases the bot
-    #async with bot:
-
     #Create an application
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
-            
-
+    application = application_setup()
+    
     start_handler = CommandHandler('start', start)
     #filter.Text = message sent by user
     #Basically the trigger is all messsgaes that are not a command 
     echo_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), echo)
     caps_handler = CommandHandler('caps', caps)
+    provide_template_handler = MessageHandler(filters.Regex(r'income') | filters.Regex(f'expense'),provide_template)
     application.add_handler(caps_handler)
     application.add_handler(start_handler)
-    application.add_handler(echo_handler)
+    #application.add_handler(echo_handler)
+    application.add_handler(provide_template_handler)
     
         
     application.run_polling()
 
 
-#Nisema tinkerig
-#print(await bot.get_me())
-#The brackets is the message number
-#updates = (await bot.get_updates())[1]
-#chat_id = updates.effective_chat.id
-#username = updates.effective_user.first_name
-#await bot.send_message(chat_id=chat_id, text=f"Hi {username}!")
+#Nisema notes:
+'''
+First version of Richie 
+    -> Take a message in the correct format
+    -> Parse the information and return it:
+        -> Example: 2026-10-14 Bread Food
+        -> Transaction date: 2026-10-14
+        -> Description: Bread
+        -> Type: Food
+'''
