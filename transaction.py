@@ -35,21 +35,21 @@ class Transaction:
             Return:
                 String for Richie to say to user. 
         '''
-        missing_attributes = []
+        list_missing_attributes = []
         for attr,value in vars(self).items():
             if value == "Missing":
-                missing_attributes.append(attr)
+                list_missing_attributes.append(attr)
         
-        if missing_attributes == []:
+        if list_missing_attributes == []:
             #If message is complete it should run function that provides a summary pf the transaction
             final_message = "Awesome! Record complete"
-            return final_message
+            return list_missing_attributes, final_message
         else:
             final_message = "It appears at though I'm missing some information. "
             attributes = ""
-            for attr in missing_attributes:
+            for attr in list_missing_attributes:
                 attributes += f"\n{attr}"
             attributes.lower()
             final_message += f"\nPlease provide the following: {attributes}"
-            return missing_attributes,final_message
+            return list_missing_attributes, final_message
 

@@ -85,10 +85,13 @@ async def completeness_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if hasattr(current_transaction,current_attr): setattr(current_transaction,current_attr,ent.text)
         
 
-    missing_attribute, message = current_transaction.completeness_message()
+    missing_attributes, message = current_transaction.completeness_message()
     await context.bot.send_message(chat_id=update.effective_chat.id,text=message)
-    #if not current_transaction.complete():
+    if not (missing_attributes == []):
         #Go through each empty attribute and wait for the user to respond
+        for attr in missing_attributes:
+            recieve_missing_transaction_attribute(attr)
+            print("I'm here!")
 
 async def recieve_missing_transaction_attribute(missing_attribute: Str, update: Update, context: ContextTypes.DEFAULT_TYPE):
     """"
@@ -98,10 +101,10 @@ async def recieve_missing_transaction_attribute(missing_attribute: Str, update: 
     doc = mlp(text)
 
     while (doc.label != missing_attribute):
-        
-    if doc.label == missing_attribute:
-        setattr(current_transaction,current_attr,ent.text)
-    else:
+         text =  await update.effective_message.text
+         await context.bot.send_message(f"Please provide the missing attribute: {missing_attribute}")
+    
+    setattr(current_transaction,current_attr,ent.text)
         
 
 
