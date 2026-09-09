@@ -6,7 +6,7 @@ import os
 import logging
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
-from telegram.ext import MessageHandler
+from telegram.ext import MessageHandler, ConversationHandler
 import telegram.ext.filters as filters
 from transaction import Transaction
 import spacy
@@ -44,7 +44,8 @@ async def provide_template(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     It returns the handler
     '''
-
+    current_transaction = Transaction()
+    context.user_data["current_transaction"] = current_transaction
     text = (update.effective_message.text).lower()
     print(f"{text}")
     template = ""
@@ -64,7 +65,9 @@ async def provide_template(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if template != "":
         message = f"Of course {update.effective_user.first_name}! \n" + f"To record a {trans_type}, follow the below message structure: \n"
         message += f"\n {template}"
-        await context.bot.send_message(chat_id= update._effective_chat.id, text=message)    
+        await context.bot.send_message(chat_id= update._effective_chat.id, text=message) 
+
+        return COMPLETENESS_CHECK  
 
 async def completeness_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """"
@@ -78,7 +81,8 @@ async def completeness_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
     doc = nlp(text)
     
     #Loop through each word and assign it to it's given attribute
-    current_transaction = Transaction()
+    current_transaction: Transaction = context.user_data.get("current_transaction")
+
     for ent in doc.ents:
         current_attr = ent.label_
         if current_attr == "DATE": current_attr = "TRANSACTION_DATE"
@@ -87,24 +91,24 @@ async def completeness_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     missing_attributes, message = current_transaction.completeness_message()
     await context.bot.send_message(chat_id=update.effective_chat.id,text=message)
-    if not (missing_attributes == []):
-        #Go through each empty attribute and wait for the user to respond
-        for attr in missing_attributes:
-            recieve_missing_transaction_attribute(attr)
-            print("I'm here!")
 
-async def recieve_missing_transaction_attribute(missing_attribute: Str, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if missing_attributes == []:
+        return ConversationHandler.END
+    else:
+        return COMPLETENESS_CHECK
+
+'''async def recieve_missing_transaction_attribute(missing_attribute: str, update: Update, context: ContextTypes.DEFAULT_TYPE):
     """"
     Recieve missing attribute and request user input until it meets format expectations
     """
     text = update.effective_message.text
-    doc = mlp(text)
+    doc = nlp(text)
 
     while (doc.label != missing_attribute):
          text =  await update.effective_message.text
          await context.bot.send_message(f"Please provide the missing attribute: {missing_attribute}")
     
-    setattr(current_transaction,current_attr,ent.text)
+    setattr(current_transaction,current_attr,ent.text)'''
         
 
 
@@ -177,15 +181,22 @@ if __name__ == '__main__':
     ruler.add_patterns(patterns) #adds functionality to the entity_ruler by adding a class rule
     ruler.overwrite_ents = True
 
+    #----Add in state number for conversation handler---------------------#
+    COMPLETENESS_CHECK = 0
+
     #--Add in event handlers----------------------------------------------#
 
+    
+    conversation_handler = ConversationHandler(
+        entry_points=[ MessageHandler(filters.TEXT & (filters.Regex(r'income') | filters.Regex(f'expense')),provide_template)],
+        states={COMPLETENESS_CHECK: [MessageHandler(filters.TEXT & (~filters.COMMAND),completeness_check)]},
+        fallbacks=[]
+    )
+    application.add_handler(conversation_handler)
     start_handler = CommandHandler('start', start)
     #Basically the trigger is all messsgaes that are not a command 
-    provide_template_handler = MessageHandler(filters.Regex(r'income') | filters.Regex(f'expense'),provide_template)
     mock_handler = CommandHandler('mock',completeness_check)
-   
     application.add_handler(start_handler)
-    application.add_handler(provide_template_handler)
     application.add_handler(mock_handler)
     
         

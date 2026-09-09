@@ -45,11 +45,10 @@ class Transaction:
             final_message = "Awesome! Record complete"
             return list_missing_attributes, final_message
         else:
-            final_message = "It appears at though I'm missing some information. "
+            final_message = "It appears at though I'm missing some information.\n"
             attributes = ""
             for attr in list_missing_attributes:
                 attributes += f"\n{attr}"
-            attributes.lower()
-            final_message += f"\nPlease provide the following: {attributes}"
+            final_message += f"\nPlease provide the following: {attributes.lower()}"
             return list_missing_attributes, final_message
 
