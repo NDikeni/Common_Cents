@@ -40,13 +40,20 @@ def add_expense(transaction_date, store, description, amount, category):
         categpry: expenses category limited to ('Hair', 'Clothes', 'Medical',
         'Tech', 'Dorm room', 'Cleaning', 'Misc', 'Toiletries',
         'Stationery', 'Fun', 'Travel', 'Fixed', 'Taxes')
+
+    Returns: 
+            Message indicating if the addition was succesful or not
+
     """
     try:
         trans_id = add_new_transaction(transaction_date,'expense')
         cursor.execute("INSERT INTO expenses (trans_id, store, description, amount, category) VALUES (?,?,?,?,?)",(trans_id, store, description, amount, category))
         conn.commit()
+        message = "Your expense has been recorded"
     except sqlite3.IntegrityError as e: 
-        print(f"Expense addition failed: {e}")
+        message = f"Expense addition failed: {e}"
+
+    return message
 
 #Function to add an income
 def add_income(transaction_date,source, description, amount, category):
@@ -60,16 +67,19 @@ def add_income(transaction_date,source, description, amount, category):
             category: incomes source 
 
             Returns: 
-                True for succesful addition
-                False for unsuccesful addition
+                Message indicating if the addition was succesful or not
       """
     try:
         trans_id = add_new_transaction(transaction_date,'income')
         cursor.execute("INSERT INTO income (trans_id, source, description, amount, category) VALUES (?,?,?,?,?)",(trans_id, source, description, amount, category))
         conn.commit()
+        message = f"Your income has been recorded"
     except sqlite3.IntegrityError as e: 
-        print(f"Income addition failed: {e}")
+        message = f"Income addition failed: {e}"
 
+    return message
+
+#Thought have the function return true or false and then if succesful print to user the expense / income has been recordded
 
 
 

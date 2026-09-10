@@ -11,6 +11,7 @@ import telegram.ext.filters as filters
 from transaction import Transaction
 import spacy
 from spacy.pipeline import EntityRuler
+import db_manager
 
 
 #logging module to know when (and why) things don't work as expected
@@ -38,12 +39,12 @@ def application_setup():
     return ApplicationBuilder().token(BOT_TOKEN).build()
 
 async def provide_template(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     '''
     Richie will provide the proper format for an expense or income as per user request
 
     It returns the handler
     '''
+    #Creates transaction object and saves the type of transaction
     current_transaction = Transaction()
     context.user_data["current_transaction"] = current_transaction
     text = (update.effective_message.text).lower()
@@ -56,11 +57,15 @@ async def provide_template(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if expense in text:
         template = "YYYY-MM-DD store #description# amount category"
         trans_type = "expense"
+        
         print(f'The transaction type is: {trans_type}')
     elif income in text:
         template = "YYYY-MM-DD source #description# amount category"
         trans_type = "income"
         print(f'The transaction type is: {trans_type}')
+
+    #Save transaction type for function that saves transaction to database
+    context.user_data["trans_type"] = trans_type 
 
     if template != "":
         message = f"Of course {update.effective_user.first_name}! \n" + f"To record a {trans_type}, follow the below message structure: \n"
@@ -82,20 +87,51 @@ async def completeness_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     #Loop through each word and assign it to it's given attribute
     current_transaction: Transaction = context.user_data.get("current_transaction")
-
+    trans_type = context.user_data.get("trans_type")
     for ent in doc.ents:
         current_attr = ent.label_
+        current_text = ent.text.capitalize()
         if current_attr == "DATE": current_attr = "TRANSACTION_DATE"
-        if hasattr(current_transaction,current_attr): setattr(current_transaction,current_attr,ent.text)
+        if current_attr == "DESCRIPTION": current_text = current_text[1:-1] #Ensure description doesn't have hashes
+        if hasattr(current_transaction,current_attr): setattr(current_transaction,current_attr,current_text)
         
 
     missing_attributes, message = current_transaction.completeness_message()
     await context.bot.send_message(chat_id=update.effective_chat.id,text=message)
 
     if missing_attributes == []:
+        "End the conversation handler"
+        result_message = await save_to_db(current_transaction,trans_type)
+        await context.bot.send_message(chat_id=update.effective_chat.id,text=result_message)
         return ConversationHandler.END
     else:
         return COMPLETENESS_CHECK
+
+async def save_to_db(transaction: Transaction, trans_type: Str ):
+    '''Saves the user input to the SQL server
+
+        Returns the result messgae
+    '''
+    current_transaction = transaction
+    trans_type = trans_type
+    if trans_type == "expense":
+        result_message = db_manager.add_expense(
+            current_transaction.TRANSACTION_DATE,
+            current_transaction.SOURCE,
+            current_transaction.DESCRIPTION,
+            current_transaction.AMOUNT,
+            current_transaction.CATEGORY)
+    elif trans_type == "income":
+        result_message = db_manager.add_income(
+            current_transaction.TRANSACTION_DATE,
+            current_transaction.SOURCE,
+            current_transaction.DESCRIPTION,
+            current_transaction.AMOUNT,
+            current_transaction.CATEGORY)
+
+    return result_message
+
+
 
 '''async def recieve_missing_transaction_attribute(missing_attribute: str, update: Update, context: ContextTypes.DEFAULT_TYPE):
     """"
@@ -183,7 +219,6 @@ if __name__ == '__main__':
 
     #----Add in state number for conversation handler---------------------#
     COMPLETENESS_CHECK = 0
-
     #--Add in event handlers----------------------------------------------#
 
     
