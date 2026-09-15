@@ -12,6 +12,7 @@ from transaction import Transaction
 import spacy
 from spacy.pipeline import EntityRuler
 import db_manager
+from sheets_sync import gspread_setup, save_trans_to_gspread
 
 
 #logging module to know when (and why) things don't work as expected
@@ -93,6 +94,7 @@ async def completeness_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
         current_text = ent.text.capitalize()
         if current_attr == "DATE": current_attr = "TRANSACTION_DATE"
         if current_attr == "DESCRIPTION": current_text = current_text[1:-1] #Ensure description doesn't have hashes
+        if current_attr == "AMOUNT": current_text = current_text[1:] #Ensure amount doesn't have dollar sign in front
         if hasattr(current_transaction,current_attr): setattr(current_transaction,current_attr,current_text)
         
 
@@ -102,12 +104,14 @@ async def completeness_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if missing_attributes == []:
         "End the conversation handler"
         result_message = await save_to_db(current_transaction,trans_type)
+        trans_list = current_transaction.convert_to_list()
+        save_trans_to_gspread(trans_list)
         await context.bot.send_message(chat_id=update.effective_chat.id,text=result_message)
         return ConversationHandler.END
     else:
         return COMPLETENESS_CHECK
 
-async def save_to_db(transaction: Transaction, trans_type: Str ):
+async def save_to_db(transaction: Transaction, trans_type: Str):
     '''Saves the user input to the SQL server
 
         Returns the result messgae
@@ -196,16 +200,18 @@ def return_EntityRuler_patterns():
         patterns.append({"label":"CATEGORY", "pattern": [{"LOWER": income }] })
 
     return patterns
-    
+
+
 
 if __name__ == '__main__':
 
     #-----Create an application--------
     application = application_setup()
 
-    #-------Setup spaCy-----------------------
+    #-------Setup spaCy and gspread-----------------------
     #Create an instance of default spaCy pipeline
     nlp = spacy.load("en_core_web_sm")
+    gspread_setup()
     
         
     #Add entity recogintion rule to pipeline

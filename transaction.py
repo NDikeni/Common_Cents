@@ -54,3 +54,13 @@ class Transaction:
             final_message += f"\nPlease provide the following: {attributes.lower()}"
             return list_missing_attributes, final_message
 
+    def convert_to_list(self):
+        '''
+        Receive a transaction object and for each item add it to the list that will be passed to insert the row
+        '''
+        #Vars turns the object attributes into a dictionery {"amount":100,"category":"Tech"}
+        #.values is only the arguments passed into the object attributes
+        new_row_data = list(vars(self).values())
+        print(new_row_data)
+        return new_row_data
+
